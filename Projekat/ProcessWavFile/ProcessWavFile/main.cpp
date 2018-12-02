@@ -1,15 +1,21 @@
-
 #include <stdlib.h>
 #include <string.h>
 #include "WAVheader.h"
 #include "expander.h"
+#include <cmath>
 
 #define BLOCK_SIZE 16
 #define MAX_NUM_CHANNEL 8
 #define NUM_OF_CHANNELS 5
 
+enum output_mode {
+					mode1, // (2_0_0)
+					mode2, // (3_2_0)
+};
+
 double sampleBuffer[MAX_NUM_CHANNEL][BLOCK_SIZE];
 
+AudioExpander_t expander;
 
 void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 {
@@ -19,17 +25,11 @@ void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 	double minus3db_gain = 0.5;
 	double minus5db_gain = 0.32;
 
-	AudioExpander_t * expander;
-
-
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
 		pInbuff[0][i] = pInbuff[0][i] * minus6db_gain; // L -> input gain = -6db
-	}
-
-	for (int i = 0; i < BLOCK_SIZE; i++)
-	{
 		pInbuff[1][i] = pInbuff[1][i] * minus6db_gain; //R -> input gain = -6db
+
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
@@ -57,8 +57,8 @@ void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 		pInbuff[6][i] = pInbuff[1][i] * (-1); //R[0]-> (-1)
 	}
 
-	gst_audio_dynamic_transform_expander_double(expander, pInbuff[0], BLOCK_SIZE);
-	gst_audio_dynamic_transform_expander_double(expander, pInbuff[1], BLOCK_SIZE);
+	gst_audio_dynamic_transform_expander_double(&expander, pInbuff[0], BLOCK_SIZE);
+	gst_audio_dynamic_transform_expander_double(&expander, pInbuff[1], BLOCK_SIZE);
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
@@ -95,12 +95,23 @@ int main(int argc, char* argv[])
 	char WavInputName[256];
 	char WavOutputName[256];
 	WAV_HEADER inputWAVhdr,outputWAVhdr;	
+	int enable_processing = 0;
+	output_mode mode_o = mode1;
 
 	AudioExpander_t expander;
 
+
+
+	if (argc == 5)
+	{
+		enable_processing = atoi(argv[3]);
+		mode_o = (output_mode)atoi([argv[4]);
+
+	}
+
 	// Init channel buffers
-	for(int i=0; i<MAX_NUM_CHANNEL; i++)
-		memset(&sampleBuffer[i],0,BLOCK_SIZE);
+	for (int i = 0; i < MAX_NUM_CHANNEL; i++)
+		memset(&sampleBuffer[i], 0, BLOCK_SIZE);
 
 	// Open input and output wav files
 	//-------------------------------------------------
@@ -158,8 +169,8 @@ int main(int argc, char* argv[])
 					sampleBuffer[k][j] = sample / SAMPLE_SCALE;				// scale sample to 1.0/-1.0 range		
 				}
 			}
-
-			processing(sampleBuffer, sampleBuffer);
+			if (enable_processing)
+				processing(sampleBuffer, sampleBuffer);
 
 			for(int j=0; j<BLOCK_SIZE; j++)
 			{
@@ -167,6 +178,15 @@ int main(int argc, char* argv[])
 				{	
 					sample = sampleBuffer[k][j] * SAMPLE_SCALE ;	// crude, non-rounding 			
 					sample = sample >> (32 - inputWAVhdr.fmt.BitsPerSample);
+					
+					if ((o_mode == mode1) && (k != 1 && k != 3)) {
+						sample = 0;
+					}
+
+					if ((o_mode == mode2) && (k != 0 && k != 4)) {
+						sample = 0;
+					}
+					
 					fwrite(&sample, outputWAVhdr.fmt.BitsPerSample/8, 1, wav_out);		
 				}
 			}		
