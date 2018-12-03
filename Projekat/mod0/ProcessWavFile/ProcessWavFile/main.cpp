@@ -9,8 +9,8 @@
 #define NUM_OF_CHANNELS 5
 
 enum output_mode {
-					mode1, // (2_0_0)
-					mode2, // (3_2_0)
+					mode1, // (2_0_0) Samo LS i RS
+					mode2, // (3_2_0) Svi, nemamo bass (to je treci broj)
 };
 
 double sampleBuffer[MAX_NUM_CHANNEL][BLOCK_SIZE];
@@ -19,37 +19,33 @@ AudioExpander_t expander;
 
 void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 {
-	int mode = 1;
-	double minus6db_gain = 0.25;
-	double minus16db_gain = 0.025;
-	double minus3db_gain = 0.5;
-	double minus5db_gain = 0.32;
-
+	const double tap_gain[4] = { 0.025,0.32,0.25,0.5 };
+	output_mode o_mode;
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		pInbuff[0][i] = pInbuff[0][i] * minus6db_gain; // L -> input gain = -6db
-		pInbuff[1][i] = pInbuff[1][i] * minus6db_gain; //R -> input gain = -6db
+		pInbuff[0][i] = pInbuff[0][i] * tap_gain[2]; // L -> input gain = -6db
+		pInbuff[1][i] = pInbuff[1][i] * tap_gain[2]; //R -> input gain = -6db
 
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		pInbuff[2][i] = pInbuff[0][i] * minus16db_gain; //L[0]-> input gain = -16db
+		pInbuff[2][i] = pInbuff[0][i] * tap_gain[0]; //L[0]-> input gain = -16db
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		pInbuff[3][i] = pInbuff[0][i] * minus6db_gain;  //L[1]-> input gain = -6db
+		pInbuff[3][i] = pInbuff[0][i] * tap_gain[2];  //L[1]-> input gain = -6db
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		pInbuff[4][i] = pInbuff[0][i] * minus5db_gain;  //L[2]-> input gain = -5db
+		pInbuff[4][i] = pInbuff[0][i] * tap_gain[1];  //L[2]-> input gain = -5db
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		pInbuff[5][i] = pInbuff[0][i] * minus3db_gain; //L[3]-> input gain = -3db
+		pInbuff[5][i] = pInbuff[0][i] * tap_gain[3]; //L[3]-> input gain = -3db
 	}
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
@@ -62,7 +58,7 @@ void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 
 	for (int i = 0; i < BLOCK_SIZE; i++)
 	{
-		if (mode == 1)
+		if (o_mode == mode1)
 		{
 			pOutbuff[0][i] = pInbuff[2][i];
 		}
@@ -73,7 +69,7 @@ void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 
 		pOutbuff[1][i] = pInbuff[0][i];
 
-		if (mode == 1)
+		if (o_mode == mode1)
 		{
 			pOutbuff[2][i] = pInbuff[5][i];
 		}
@@ -83,7 +79,6 @@ void processing(double pInbuff[][BLOCK_SIZE], double pOutbuff[][BLOCK_SIZE])
 		}
 
 		pOutbuff[3][i] = pInbuff[6][i];
-
 		pOutbuff[4][i] = pInbuff[1][i];
 	}
 }

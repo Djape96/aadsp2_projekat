@@ -2,11 +2,66 @@
 #include <stdlib.h>
 #include <string.h>
 #include "WAVheader.h"
+#include "common.h"
+#include <cmath>
+#include "expander.h"
 
 #define BLOCK_SIZE 16
 #define MAX_NUM_CHANNEL 8
+#define NUM_OF_CHANNELS 5
+
+//enum output_mode o_mode = ( mode1,mode2 );
 
 double sampleBuffer[MAX_NUM_CHANNEL][BLOCK_SIZE];
+AudioExpander_t expander;
+
+void processing()
+{
+	int i;
+	int mode = 1;
+	const double tap_gain_minus6db = 0;
+	const double tap_gain_5db = 0;
+	const double tap_gain_minus16db = 0;
+	const double tap_gain_3db = 0;
+	
+
+	double* pChannel0 = sampleBuffer[0];
+	double* pChannel1 = sampleBuffer[1];
+	double* pChannel2 = sampleBuffer[2];
+	double* pChannel3 = sampleBuffer[3];
+	double* pChannel4 = sampleBuffer[4];
+
+	double* tmp_channel0 = pChannel0;
+	double* tmp_channel1 = pChannel1;
+
+	for (i = 0; i < BLOCK_SIZE; i++)
+	{ 
+		*(tmp_channel0) *= tap_gain_minus6db;
+		*(tmp_channel1) *= tap_gain_minus6db;
+	}
+	for (i = 0; i < BLOCK_SIZE; i++) {
+		*pChannel3 = *(tmp_channel1) * (-1);
+	}
+	if (mode == 1)
+	{
+		for (i = 0; i < BLOCK_SIZE; i++)
+		{
+			*pChannel0 = *(tmp_channel0)* tap_gain_minus6db;
+			*pChannel2 = *(tmp_channel0)* tap_gain_3db;
+		}
+	}
+	else {
+		for (i = 0; i < BLOCK_SIZE; i++)
+		{
+			*pChannel0 = *(tmp_channel0)* tap_gain_minus16db;
+			*pChannel2 = *(tmp_channel0)* tap_gain_5db;
+		}
+	}
+	
+	gst_audio_dynamic_transform_expander_double(&expander, tmp_channel0);
+	gst_audio_dynamic_transform_expander_double(&expander, tmp_channel1);
+
+}
 
 int main(int argc, char* argv[])
 {
